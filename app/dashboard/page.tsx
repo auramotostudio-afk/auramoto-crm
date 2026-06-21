@@ -329,9 +329,9 @@ export default function DashboardPage() {
     phone = phone.replace(/\D/g,'');
     if(phone.length === 10) phone = `91${phone}`;
     
-    // Website link placed at the absolute top to force the Gold Logo preview
+    // Website link placed at the absolute top with a cache-buster (?v=1) to force the Gold Logo preview
     const text = `*AuraMoto Detailing Studio*
-https://royal-night-d219.auramotostudio.workers.dev/
+https://royal-night-d219.auramotostudio.workers.dev/?v=1
 
 Hello ${inv.customer},
 Thank you for trusting us with your vehicle! 
