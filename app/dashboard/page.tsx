@@ -299,7 +299,7 @@ export default function DashboardPage() {
     doc.save(`${inv.id}_AuraMoto_${isPaid ? 'Receipt' : 'Invoice'}.pdf`);
   };
 
-  // --- SHARE VIA WHATSAPP (UPLOAD TO SUPABASE CLOUD FIRST) ---
+  // --- SHARE VIA WHATSAPP (FIXED TEXT & LOGIC) ---
   const shareToWhatsApp = async (inv: any) => {
     setIsUploading(inv.id);
     const isPaid = inv.status === 'Paid' || inv.status === 'PAID';
@@ -315,19 +315,22 @@ export default function DashboardPage() {
       upsert: true
     });
 
-    let invoiceUrl = "";
-    if (!error) {
-      const { data: publicUrlData } = supabase.storage.from('invoices').getPublicUrl(fileName);
-      invoiceUrl = publicUrlData.publicUrl;
+    if (error) {
+      console.error("Supabase Upload Blocked:", error);
+      alert("WARNING: PDF Upload failed! Did you add the Storage Policy in Supabase?");
     }
 
-    // 3. Prepare Text and Open WhatsApp
+    // 3. Get the URL
+    const { data: publicUrlData } = supabase.storage.from('invoices').getPublicUrl(fileName);
+    const invoiceUrl = publicUrlData.publicUrl;
+
+    // 4. Prepare Text and Open WhatsApp
     const custRecord = customers.find(c => c.name === inv.customer);
     let phone = custRecord ? custRecord.phone : "";
     phone = phone.replace(/\D/g,'');
     if(phone.length === 10) phone = `91${phone}`;
     
-    // Cleaned up text symbols for perfect formatting across all devices
+    // Clean text layout without emojis for WhatsApp Desktop compatibility
     const text = `*AuraMoto Detailing Studio* \n
 Hello ${inv.customer},
 Thank you for trusting us with your vehicle! 
@@ -337,15 +340,13 @@ Thank you for trusting us with your vehicle!
 *Total Amount*: Rs. ${Number(inv.amount).toLocaleString('en-IN')}
 *Status*: ${isPaid ? 'PAID' : 'PENDING'}
 
-📄 *Download your Invoice Document:*
+*Download your Invoice Document:*
 ${invoiceUrl}
 
 *Visit our official website:*
 https://royal-night-d219.auramotostudio.workers.dev/
 
-*(Google Review link will be updated here once verified)*
-
-*Special Offer:* Get 10% off your next wash! Show this message at the studio.`;
+*(Google Review link will be updated here once verified)*`;
 
     window.open(phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
     setIsUploading(null);
