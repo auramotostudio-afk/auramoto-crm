@@ -346,7 +346,7 @@ ${invoiceUrl}
 
 *(Google Review link will be updated here once verified)*
 
-We truly appreciate your business and look forward to serving you again. Drive safe and stay shining! ✨`;
+We truly appreciate your business and look forward to serving you again. Drive safe and stay shining!`;
 
     window.open(phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
     setIsUploading(null);
