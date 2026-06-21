@@ -317,7 +317,6 @@ export default function DashboardPage() {
 
     if (error) {
       console.error("Supabase Upload Blocked:", error);
-      alert("WARNING: PDF Upload failed! Did you add the Storage Policy in Supabase?");
     }
 
     // 3. Get the URL
@@ -330,8 +329,10 @@ export default function DashboardPage() {
     phone = phone.replace(/\D/g,'');
     if(phone.length === 10) phone = `91${phone}`;
     
-    // Clean text layout without emojis for WhatsApp Desktop compatibility
-    const text = `*AuraMoto Detailing Studio* \n
+    // Website link placed at the absolute top to force the Gold Logo preview
+    const text = `*AuraMoto Detailing Studio*
+https://royal-night-d219.auramotostudio.workers.dev/
+
 Hello ${inv.customer},
 Thank you for trusting us with your vehicle! 
 
@@ -340,13 +341,12 @@ Thank you for trusting us with your vehicle!
 *Total Amount*: Rs. ${Number(inv.amount).toLocaleString('en-IN')}
 *Status*: ${isPaid ? 'PAID' : 'PENDING'}
 
-*Download your Invoice Document:*
+*Download your Invoice:*
 ${invoiceUrl}
 
-*Visit our official website:*
-https://royal-night-d219.auramotostudio.workers.dev/
+*(Google Review link will be updated here once verified)*
 
-*(Google Review link will be updated here once verified)*`;
+We truly appreciate your business and look forward to serving you again. Drive safe and stay shining! ✨`;
 
     window.open(phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
     setIsUploading(null);
