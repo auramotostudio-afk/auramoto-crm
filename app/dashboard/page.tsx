@@ -4,13 +4,38 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { jsPDF } from "jspdf";
 import { 
-  Users, ClipboardList, Package, IndianRupee, LayoutDashboard, LogOut, Car,
-  Plus, ArrowRight, Clock, AlertTriangle, FileText, Download, TrendingUp, TrendingDown, Receipt, MessageCircle, Filter, CheckCircle2, Lock
+  Users, 
+  ClipboardList, 
+  Package, 
+  IndianRupee, 
+  LayoutDashboard, 
+  LogOut, 
+  Car,
+  Plus,
+  Search,
+  ArrowRight,
+  Clock,
+  AlertTriangle,
+  FileText,
+  Download,
+  TrendingUp,
+  TrendingDown,
+  Receipt,
+  MessageCircle,
+  Filter,
+  CheckCircle2,
+  Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 // --- OFFICIAL STUDIO PRICING CATALOG (No GST) ---
 const serviceCatalog: Record<string, Record<string, number>> = {
@@ -38,6 +63,16 @@ const serviceCatalog: Record<string, Record<string, number>> = {
   "Roof Liner Cleaning": { Hatchback: 499, Sedan: 499, SUV: 499 },
   "Odour Removal Treatment": { Hatchback: 499, Sedan: 499, SUV: 499 },
   "Engine Bay Cleaning": { Hatchback: 699, Sedan: 699, SUV: 699 },
+};
+
+// --- IMAGE LOADER UTILITY (Moved outside component for global TS access) ---
+const loadImage = (url: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.src = url;
+    img.onload = () => resolve(img);
+    img.onerror = (err) => reject(err);
+  });
 };
 
 export default function DashboardPage() {
@@ -570,26 +605,20 @@ export default function DashboardPage() {
                         <div className="space-y-1.5 w-1/3">
                           <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Category</label>
                           <select value={jobVehicleType} onChange={(e)=>setJobVehicleType(e.target.value as any)} className="w-full bg-black/50 border border-neutral-800 rounded-md h-9 text-sm px-3 text-white focus:ring-1 focus:ring-[#D4AF37]/50 focus:outline-none appearance-none" required>
-                            <option value="Hatchback">Hatchback</option>
-                            <option value="Sedan">Sedan</option>
-                            <option value="SUV">SUV</option>
+                            <option value="Hatchback">Hatchback</option><option value="Sedan">Sedan</option><option value="SUV">SUV</option>
                           </select>
                         </div>
                         <div className="space-y-1.5 w-2/3">
                           <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Service Required</label>
                           <select value={jobService} onChange={(e)=>setJobService(e.target.value)} className="w-full bg-black/50 border border-neutral-800 rounded-md h-9 text-sm px-3 text-white focus:ring-1 focus:ring-[#D4AF37]/50 focus:outline-none appearance-none" required>
-                            {Object.keys(serviceCatalog).map(service => (
-                              <option key={service} value={service}>{service}</option>
-                            ))}
+                            {Object.keys(serviceCatalog).map(service => (<option key={service} value={service}>{service}</option>))}
                           </select>
                         </div>
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Initial Stage</label>
                         <select value={jobStatus} onChange={(e) => setJobStatus(e.target.value)} className="w-full bg-black/50 border border-neutral-800 rounded-md h-9 text-sm px-3 text-white focus:ring-1 focus:ring-[#D4AF37]/50 focus:outline-none appearance-none" required>
-                          <option value="scheduled">Scheduled</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="quality_check">Quality Check</option>
+                          <option value="scheduled">Scheduled</option><option value="in_progress">In Progress</option><option value="quality_check">Quality Check</option>
                         </select>
                       </div>
                       <Button type="submit" className="w-full bg-[#D4AF37] hover:bg-[#bfa032] text-black text-xs tracking-widest uppercase font-semibold h-10 mt-2">Allocate Bay</Button>
