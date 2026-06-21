@@ -4,39 +4,12 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { jsPDF } from "jspdf";
 import { 
-  Users, 
-  ClipboardList, 
-  Package, 
-  IndianRupee, 
-  LayoutDashboard, 
-  LogOut, 
-  Car,
-  Plus,
-  ArrowRight,
-  Clock,
-  AlertTriangle,
-  FileText,
-  Download,
-  TrendingUp,
-  TrendingDown,
-  Receipt,
-  MessageCircle,
-  Filter,
-  CheckCircle2,
-  Lock,
-  Menu,
-  X
+  Users, ClipboardList, Package, IndianRupee, LayoutDashboard, LogOut, Car, Plus, ArrowRight, Clock, AlertTriangle, FileText, Download, TrendingUp, TrendingDown, Receipt, MessageCircle, Filter, CheckCircle2, Lock, Menu, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 // --- OFFICIAL STUDIO PRICING CATALOG (No GST) ---
 const serviceCatalog: Record<string, Record<string, number>> = {
@@ -77,21 +50,19 @@ const loadImage = (url: string): Promise<HTMLImageElement> => {
 };
 
 export default function DashboardPage() {
-  // --- AUTH & MOBILE STATE ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [loginError, setLoginError] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
-  // --- LIVE CLOUD STATE ---
   const [customers, setCustomers] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState<string | null>(null);
 
-  // --- FORM STATES ---
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newVehicle, setNewVehicle] = useState("");
@@ -123,7 +94,6 @@ export default function DashboardPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  // Check persistent session on load
   useEffect(() => {
     const session = localStorage.getItem("auramoto_session");
     if (session === "active") {
@@ -242,7 +212,6 @@ export default function DashboardPage() {
     fetchAllData();
   };
 
-  // --- TOGGLE INVOICE STATUS ---
   const toggleInvoiceStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "Pending" ? "Paid" : "Pending";
     await supabase.from('invoices').update({ status: newStatus }).eq('id', id);
@@ -268,38 +237,8 @@ export default function DashboardPage() {
     fetchAllData();
   };
 
-  // --- REFINED WHATSAPP SHARING ---
-  const shareToWhatsApp = (inv: any) => {
-    const custRecord = customers.find(c => c.name === inv.customer);
-    let phone = custRecord ? custRecord.phone : "";
-    phone = phone.replace(/\D/g,'');
-    if(phone.length === 10) phone = `91${phone}`;
-
-    const isPaid = inv.status === 'Paid' || inv.status === 'PAID';
-    
-    // Website link placed prominently for thumbnail scraping
-    const text = `*AuraMoto Detailing Studio* 🚘✨
-
-Hello ${inv.customer},
-Thank you for trusting us with your vehicle! 
-
-*Invoice #*: ${inv.id}
-*Service*: ${inv.service}
-*Total Amount*: ₹${Number(inv.amount).toLocaleString('en-IN')}
-*Status*: ${isPaid ? '✅ PAID' : '⏳ PENDING'}
-
-🌐 Visit our official website:
-https://royal-night-d219.auramotostudio.workers.dev/
-
-*(Google Review link will be updated here once verified)*
-
-🎁 *Special Offer:* Get 10% off your next wash! Show this message at the studio.`;
-
-    window.open(phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-  };
-
-  // --- REFINED PDF GENERATOR (REAL INVOICE/RECEIPT LOGIC) ---
-  const downloadInvoice = async (inv: any) => {
+  // --- CORE PDF GENERATOR HELPER ---
+  const generatePdfDocument = async (inv: any) => {
     const doc = new jsPDF();
     const isPaid = inv.status === 'Paid' || inv.status === 'PAID';
     const docTitle = isPaid ? "PAYMENT RECEIPT" : "INVOICE";
@@ -309,30 +248,25 @@ https://royal-night-d219.auramotostudio.workers.dev/
       doc.addImage(logoImg, 'PNG', 15, 12, 25, 12); 
     } catch (e) { console.warn(e); }
 
-    // Studio Header
     doc.setFont("helvetica", "bold").setFontSize(16).setTextColor(212, 175, 55); 
     doc.text("AuraMoto Detailing Studio", 45, 18);
     doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(100, 100, 100);
     doc.text("Premium Automotive Detailing & Care", 45, 23).text("Dabra Studio, Madhya Pradesh", 45, 28);
     
-    // Document Title (Dynamic)
     doc.setFont("helvetica", "bold").setFontSize(16).setTextColor(40, 40, 40).text(docTitle, 155, 18);
     doc.setFont("helvetica", "normal").setFontSize(9).text(`${isPaid ? 'Receipt' : 'Invoice'} #: ${inv.id}`, 155, 24).text(`Date: ${inv.date}`, 155, 29);
     
-    // Status Color Logic
     if (isPaid) {
-      doc.setTextColor(16, 185, 129); // Emerald Green
+      doc.setTextColor(16, 185, 129);
       doc.text(`Status: PAID`, 155, 34);
     } else {
-      doc.setTextColor(245, 158, 11); // Amber Orange
+      doc.setTextColor(245, 158, 11);
       doc.text(`Status: PENDING`, 155, 34);
     }
-    doc.setTextColor(40, 40, 40); // Reset to dark gray
+    doc.setTextColor(40, 40, 40);
 
-    // Line
     doc.setDrawColor(212, 175, 55).setLineWidth(0.5).line(15, 42, 195, 42);
     
-    // Client Info
     doc.setFont("helvetica", "bold").setTextColor(40, 40, 40).text("BILLED TO:", 15, 55);
     doc.setFont("helvetica", "normal").text(inv.customer, 15, 61);
     
@@ -341,13 +275,11 @@ https://royal-night-d219.auramotostudio.workers.dev/
       doc.text(`Vehicle: ${custRecord.vehicle}`, 15, 67).text(`License Plate: ${custRecord.plate}`, 15, 73).text(`Phone: ${custRecord.phone}`, 15, 79);
     }
 
-    // Table
     doc.setFillColor(10, 10, 12).rect(15, 95, 180, 10, "F");
     doc.setTextColor(255, 255, 255).setFont("helvetica", "bold").text("SERVICE DESCRIPTION", 20, 101.5).text("TOTAL AMOUNT", 160, 101.5);
     doc.setTextColor(40, 40, 40).setFont("helvetica", "normal").text(inv.service, 20, 115).text(`Rs. ${inv.amount.toLocaleString('en-IN')}`, 160, 115);
     doc.setDrawColor(230, 230, 230).line(15, 125, 195, 125);
     
-    // Totals
     doc.setFont("helvetica", "bold").setFontSize(11).text("GRAND TOTAL:", 125, 145).setTextColor(212, 175, 55).text(`Rs. ${inv.amount.toLocaleString('en-IN')}`, 160, 145);
 
     try {
@@ -357,8 +289,68 @@ https://royal-night-d219.auramotostudio.workers.dev/
 
     doc.setTextColor(150, 150, 150).setFont("helvetica", "normal").setFontSize(8).text("Thank you for choosing AuraMoto.", 105, 270, { align: "center" }).text("This is a system-generated document.", 105, 275, { align: "center" });
     
+    return doc;
+  };
+
+  // --- DOWNLOAD PDF LOCALLY ---
+  const downloadInvoice = async (inv: any) => {
+    const doc = await generatePdfDocument(inv);
+    const isPaid = inv.status === 'Paid' || inv.status === 'PAID';
     doc.save(`${inv.id}_AuraMoto_${isPaid ? 'Receipt' : 'Invoice'}.pdf`);
   };
+
+  // --- SHARE VIA WHATSAPP (UPLOAD TO SUPABASE CLOUD FIRST) ---
+  const shareToWhatsApp = async (inv: any) => {
+    setIsUploading(inv.id);
+    const isPaid = inv.status === 'Paid' || inv.status === 'PAID';
+    
+    // 1. Generate PDF
+    const doc = await generatePdfDocument(inv);
+    const pdfBlob = doc.output('blob');
+    const fileName = `${inv.id}_AuraMoto_${isPaid ? 'Receipt' : 'Invoice'}.pdf`;
+
+    // 2. Upload to Supabase 'invoices' bucket
+    const { error } = await supabase.storage.from('invoices').upload(fileName, pdfBlob, {
+      contentType: 'application/pdf',
+      upsert: true
+    });
+
+    let invoiceUrl = "";
+    if (!error) {
+      const { data: publicUrlData } = supabase.storage.from('invoices').getPublicUrl(fileName);
+      invoiceUrl = publicUrlData.publicUrl;
+    }
+
+    // 3. Prepare Text and Open WhatsApp
+    const custRecord = customers.find(c => c.name === inv.customer);
+    let phone = custRecord ? custRecord.phone : "";
+    phone = phone.replace(/\D/g,'');
+    if(phone.length === 10) phone = `91${phone}`;
+    
+    // Cleaned up text symbols for perfect formatting across all devices
+    const text = `*AuraMoto Detailing Studio* \n
+Hello ${inv.customer},
+Thank you for trusting us with your vehicle! 
+
+*Invoice #*: ${inv.id}
+*Service*: ${inv.service}
+*Total Amount*: Rs. ${Number(inv.amount).toLocaleString('en-IN')}
+*Status*: ${isPaid ? 'PAID' : 'PENDING'}
+
+📄 *Download your Invoice Document:*
+${invoiceUrl}
+
+*Visit our official website:*
+https://royal-night-d219.auramotostudio.workers.dev/
+
+*(Google Review link will be updated here once verified)*
+
+*Special Offer:* Get 10% off your next wash! Show this message at the studio.`;
+
+    window.open(phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    setIsUploading(null);
+  };
+
 
   const stages = [
     { id: "scheduled", label: "Scheduled" },
@@ -709,7 +701,7 @@ https://royal-night-d219.auramotostudio.workers.dev/
                     </div>
                     <div className="p-3 flex flex-col gap-3 overflow-y-auto">
                       {jobs.filter(j => j.status === stage.id).map(job => (
-                        <div key={job.id} className="bg-[#0a0a0c] border border-neutral-800 rounded-lg p-4 shadow-lg lg:group hover:border-neutral-600 transition-colors">
+                        <div key={job.id} className="bg-[#0a0a0c] border border-neutral-800 rounded-lg p-4 shadow-lg hover:border-neutral-600 transition-colors">
                           <div className="flex justify-between items-start mb-2">
                             <span className="text-[9px] text-neutral-500 tracking-wider font-mono">{job.id}</span>
                             <Clock className="w-3 h-3 text-neutral-600" />
@@ -718,11 +710,11 @@ https://royal-night-d219.auramotostudio.workers.dev/
                           <p className="text-[11px] text-neutral-400 mb-3">{job.customer}</p>
                           <div className="bg-neutral-900/50 px-2 py-1.5 rounded text-[10px] text-neutral-300 border border-neutral-800 mb-3">{job.service}</div>
                           {stage.id !== "ready" ? (
-                            <button onClick={() => advanceJob(job.id, job.status)} className="w-full flex items-center justify-center gap-2 py-1.5 rounded bg-neutral-800/50 text-neutral-400 text-[10px] uppercase tracking-wider hover:bg-[#D4AF37]/10 hover:text-[#D4AF37] transition-colors border border-transparent hover:border-[#D4AF37]/20 lg:opacity-0 lg:group-hover:opacity-100">
+                            <button onClick={() => advanceJob(job.id, job.status)} className="w-full flex items-center justify-center gap-2 py-2 rounded bg-neutral-800/80 text-neutral-300 text-[10px] uppercase tracking-wider hover:bg-[#D4AF37]/20 hover:text-[#D4AF37] transition-colors border border-neutral-700 hover:border-[#D4AF37]/50 mt-2">
                               Move to Next Stage <ArrowRight className="w-3 h-3" />
                             </button>
                           ) : (
-                            <button onClick={() => advanceJob(job.id, job.status)} className="w-full flex items-center justify-center gap-2 py-1.5 rounded bg-emerald-900/30 text-emerald-400 text-[10px] uppercase tracking-wider hover:bg-emerald-900/60 transition-colors border border-transparent hover:border-emerald-900/50 lg:opacity-0 lg:group-hover:opacity-100">
+                            <button onClick={() => advanceJob(job.id, job.status)} className="w-full flex items-center justify-center gap-2 py-2 rounded bg-emerald-900/40 text-emerald-400 text-[10px] uppercase tracking-wider hover:bg-emerald-900/80 transition-colors border border-emerald-900/60 mt-2">
                               Mark as Delivered <CheckCircle2 className="w-3 h-3" />
                             </button>
                           )}
@@ -773,7 +765,7 @@ https://royal-night-d219.auramotostudio.workers.dev/
                           <Input type="number" value={invtPrice} onChange={(e)=>setInvtPrice(e.target.value)} placeholder="15000" className="bg-black/50 border-neutral-800 h-9 text-sm text-white font-mono" required />
                         </div>
                         <div className="space-y-1.5 w-full sm:w-1/2">
-                          <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Date</label>
+                          <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Date of Purchase</label>
                           <Input type="date" value={invtDate} onChange={(e)=>setInvtDate(e.target.value)} className="bg-black/50 border-neutral-800 h-9 text-sm text-white block w-full" required />
                         </div>
                       </div>
@@ -986,7 +978,18 @@ https://royal-night-d219.auramotostudio.workers.dev/
                                   {(inv.status === 'Paid' || inv.status === 'PAID') ? 'PAID' : 'PENDING'}
                                 </button>
                                 
-                                <button onClick={() => shareToWhatsApp(inv)} className="p-1.5 text-neutral-500 hover:text-emerald-400 hover:bg-emerald-400/10 rounded transition-colors" title="Send WhatsApp Link"><MessageCircle className="w-4 h-4" /></button>
+                                <button 
+                                  onClick={() => shareToWhatsApp(inv)} 
+                                  className="p-1.5 text-neutral-500 hover:text-emerald-400 hover:bg-emerald-400/10 rounded transition-colors relative" 
+                                  title="Send WhatsApp Link"
+                                  disabled={isUploading === inv.id}
+                                >
+                                  {isUploading === inv.id ? (
+                                    <span className="flex h-4 w-4 items-center justify-center">...</span>
+                                  ) : (
+                                    <MessageCircle className="w-4 h-4" />
+                                  )}
+                                </button>
                                 <button onClick={() => downloadInvoice(inv)} className="p-1.5 text-neutral-500 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded transition-colors" title="Download PDF"><Download className="w-4 h-4" /></button>
                               </div>
                             </td>
