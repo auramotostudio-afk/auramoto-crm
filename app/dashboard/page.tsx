@@ -24,7 +24,9 @@ import {
   MessageCircle,
   Filter,
   CheckCircle2,
-  Lock
+  Lock,
+  Menu,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +67,7 @@ const serviceCatalog: Record<string, Record<string, number>> = {
   "Engine Bay Cleaning": { Hatchback: 699, Sedan: 699, SUV: 699 },
 };
 
-// --- IMAGE LOADER UTILITY (Moved outside component for global TS access) ---
+// --- IMAGE LOADER UTILITY ---
 const loadImage = (url: string): Promise<HTMLImageElement> => {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
@@ -76,11 +78,11 @@ const loadImage = (url: string): Promise<HTMLImageElement> => {
 };
 
 export default function DashboardPage() {
-  // --- AUTHENTICATION STATE ---
+  // --- AUTH & MOBILE STATE ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [loginError, setLoginError] = useState(false);
-
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
   // --- LIVE CLOUD STATE ---
@@ -323,9 +325,9 @@ export default function DashboardPage() {
   ];
 
   const RenderDateFilter = () => (
-    <div className="flex items-center gap-2 bg-neutral-900/50 p-1.5 rounded-lg border border-neutral-800">
-      <Filter className="w-3.5 h-3.5 text-neutral-400 ml-2" />
-      <select value={dateFilter} onChange={(e)=>setDateFilter(e.target.value)} className="bg-transparent text-[11px] text-white focus:outline-none appearance-none cursor-pointer tracking-wider pr-2">
+    <div className="flex items-center gap-2 bg-neutral-900/50 p-1.5 rounded-lg border border-neutral-800 w-full sm:w-auto mt-3 sm:mt-0">
+      <Filter className="w-3.5 h-3.5 text-neutral-400 ml-2 shrink-0" />
+      <select value={dateFilter} onChange={(e)=>setDateFilter(e.target.value)} className="bg-transparent text-[11px] text-white focus:outline-none appearance-none cursor-pointer tracking-wider pr-2 w-full sm:w-auto">
         <option value="all" className="bg-[#0a0a0c]">All Time</option>
         <option value="this_week" className="bg-[#0a0a0c]">This Week</option>
         <option value="this_month" className="bg-[#0a0a0c]">This Month</option>
@@ -333,9 +335,9 @@ export default function DashboardPage() {
       </select>
       {dateFilter === "custom" && (
         <div className="flex items-center gap-2 border-l border-neutral-800 pl-2">
-          <Input type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} className="h-6 text-[10px] w-28 bg-black/50 border-neutral-800 text-neutral-300" />
+          <Input type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} className="h-6 text-[10px] w-24 sm:w-28 bg-black/50 border-neutral-800 text-neutral-300 px-1" />
           <span className="text-neutral-500 text-[10px]">to</span>
-          <Input type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} className="h-6 text-[10px] w-28 bg-black/50 border-neutral-800 text-neutral-300" />
+          <Input type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} className="h-6 text-[10px] w-24 sm:w-28 bg-black/50 border-neutral-800 text-neutral-300 px-1" />
         </div>
       )}
     </div>
@@ -344,7 +346,7 @@ export default function DashboardPage() {
   // --- RENDER LOGIN GATING OVERLAY ---
   if (!isAuthenticated) {
     return (
-      <div className="h-screen w-screen bg-[#040406] flex items-center justify-center relative font-sans text-white">
+      <div className="h-screen w-screen bg-[#040406] flex items-center justify-center relative font-sans text-white p-4">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#D4AF37]/5 rounded-full blur-[100px] pointer-events-none" />
         <Card className="w-full max-w-sm bg-[#0a0a0c] border-neutral-900 shadow-2xl p-6 relative z-10">
           <div className="flex flex-col items-center text-center space-y-2 mb-6">
@@ -352,7 +354,7 @@ export default function DashboardPage() {
               <Lock className="w-5 h-5" />
             </div>
             <h2 className="text-lg font-serif tracking-[0.2em] text-[#D4AF37]">AURAMOTO OS</h2>
-            <p className="text-[10px] text-neutral-500 uppercase tracking-widest">Administrative Verification Required</p>
+            <p className="text-[10px] text-neutral-500 uppercase tracking-widest">Administrative Verification</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
@@ -377,23 +379,36 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex h-screen w-screen bg-[#060608] text-white overflow-hidden font-sans">
+    <div className="flex h-screen w-screen bg-[#060608] text-white overflow-hidden font-sans relative">
       
+      {/* MOBILE OVERLAY */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/80 z-40 md:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* SIDEBAR NAVIGATION */}
-      <aside className="w-64 bg-[#0a0a0c] border-r border-neutral-900 flex flex-col justify-between z-20 shrink-0">
+      <aside className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-[#0a0a0c] border-r border-neutral-900 flex flex-col justify-between transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
         <div>
-          <div className="p-6 border-b border-neutral-900">
-            <h2 className="text-lg font-serif tracking-[0.2em] text-[#D4AF37]">AURAMOTO OS</h2>
-            <p className="text-[9px] text-neutral-500 tracking-wider uppercase mt-1">Studio Command Center</p>
+          <div className="p-6 border-b border-neutral-900 flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-serif tracking-[0.2em] text-[#D4AF37]">AURAMOTO OS</h2>
+              <p className="text-[9px] text-neutral-500 tracking-wider uppercase mt-1">Studio Command Center</p>
+            </div>
+            <button className="md:hidden text-neutral-500 hover:text-white" onClick={() => setIsSidebarOpen(false)}>
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <nav className="p-4 space-y-1.5">
+          <nav className="p-4 space-y-1.5 overflow-y-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-medium tracking-wider uppercase transition-all duration-200 ${
                     isActive 
                       ? "bg-[#D4AF37] text-black font-semibold shadow-[0_0_15px_rgba(212,175,55,0.2)]" 
@@ -407,7 +422,7 @@ export default function DashboardPage() {
             })}
           </nav>
         </div>
-        <div className="p-4 border-t border-neutral-900">
+        <div className="p-4 border-t border-neutral-900 shrink-0">
           <button 
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-medium tracking-wider uppercase text-neutral-500 hover:text-red-400 hover:bg-red-500/5 transition-all duration-200"
@@ -422,64 +437,68 @@ export default function DashboardPage() {
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#D4AF37]/5 rounded-full blur-[120px] pointer-events-none" />
 
-        <header className="h-16 border-b border-neutral-900 bg-[#0a0a0c]/40 backdrop-blur-md flex items-center justify-between px-8 z-10 sticky top-0 shrink-0">
-          <div className="flex items-center gap-2">
+        <header className="h-16 border-b border-neutral-900 bg-[#0a0a0c]/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-8 z-10 sticky top-0 shrink-0">
+          <div className="flex items-center gap-3 sm:gap-2">
+            <button className="md:hidden text-[#D4AF37]" onClick={() => setIsSidebarOpen(true)}>
+              <Menu className="w-5 h-5" />
+            </button>
             <Car className="w-4 h-4 text-[#D4AF37]" />
-            <span className="text-xs tracking-widest text-neutral-400 uppercase font-medium">
+            <span className="hidden sm:inline text-xs tracking-widest text-neutral-400 uppercase font-medium">
               Location: <span className="text-white font-semibold">Dabra Studio</span>
             </span>
+            <span className="sm:hidden text-[10px] tracking-widest text-white uppercase font-bold">Dabra Studio</span>
           </div>
-          <div className="text-[11px] tracking-wider text-neutral-500 uppercase">
-            Active User: <span className="text-[#D4AF37] font-medium">Nishant (Admin)</span>
+          <div className="text-[9px] sm:text-[11px] tracking-wider text-neutral-500 uppercase">
+            <span className="hidden sm:inline">Active User: </span><span className="text-[#D4AF37] font-medium">Nishant (Admin)</span>
           </div>
         </header>
 
-        <div className="p-8 relative z-10 flex-1 overflow-y-auto">
+        <div className="p-4 sm:p-8 relative z-10 flex-1 overflow-y-auto">
           
           {/* OVERVIEW TAB */}
           {activeTab === "overview" && (
             <div className="space-y-6 animate-in fade-in duration-300">
-               <div className="flex items-center justify-between">
+               <div className="flex flex-col sm:flex-row sm:items-center justify-between">
                   <div>
-                    <h1 className="text-xl font-serif tracking-wider text-white">STUDIO METRICS OVERVIEW</h1>
-                    <p className="text-xs text-neutral-500 mt-1">Real-time breakdown of operational efficiency and profitability.</p>
+                    <h1 className="text-lg sm:text-xl font-serif tracking-wider text-white">STUDIO METRICS</h1>
+                    <p className="text-[10px] sm:text-xs text-neutral-500 mt-1">Real-time breakdown of operational efficiency.</p>
                   </div>
                   <RenderDateFilter />
                </div>
                
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                 <div className="bg-[#0a0a0c] border border-neutral-900 p-6 rounded-xl shadow-lg">
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-4 sm:mt-6">
+                 <div className="bg-[#0a0a0c] border border-neutral-900 p-5 sm:p-6 rounded-xl shadow-lg">
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-medium">Filtered Revenue</p>
-                        <p className="text-2xl font-semibold text-white mt-2 font-mono">₹{totalRevenue.toLocaleString('en-IN')}</p>
+                        <p className="text-xl sm:text-2xl font-semibold text-white mt-2 font-mono">₹{totalRevenue.toLocaleString('en-IN')}</p>
                       </div>
                       <TrendingUp className="w-5 h-5 text-emerald-500" />
                     </div>
                  </div>
 
-                 <div className="bg-[#0a0a0c] border border-neutral-900 p-6 rounded-xl shadow-lg">
+                 <div className="bg-[#0a0a0c] border border-neutral-900 p-5 sm:p-6 rounded-xl shadow-lg">
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-medium">Filtered Expenses</p>
-                        <p className="text-2xl font-semibold text-white mt-2 font-mono">₹{totalExpenses.toLocaleString('en-IN')}</p>
+                        <p className="text-xl sm:text-2xl font-semibold text-white mt-2 font-mono">₹{totalExpenses.toLocaleString('en-IN')}</p>
                       </div>
                       <TrendingDown className="w-5 h-5 text-red-500" />
                     </div>
                  </div>
 
-                 <div className="bg-[#0a0a0c] border border-[#D4AF37]/30 p-6 rounded-xl shadow-[0_0_20px_rgba(212,175,55,0.1)]">
+                 <div className="bg-[#0a0a0c] border border-[#D4AF37]/30 p-5 sm:p-6 rounded-xl shadow-[0_0_20px_rgba(212,175,55,0.1)] sm:col-span-2 lg:col-span-1">
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-[#D4AF37] font-medium">Net Profit</p>
-                        <p className="text-3xl font-semibold text-white mt-2 font-mono">₹{netProfit.toLocaleString('en-IN')}</p>
+                        <p className="text-2xl sm:text-3xl font-semibold text-white mt-2 font-mono">₹{netProfit.toLocaleString('en-IN')}</p>
                       </div>
                       <IndianRupee className="w-6 h-6 text-[#D4AF37]" />
                     </div>
                  </div>
               </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
                 {[
                   { title: "Active Bays", value: `${jobs.filter(j => j.status !== "completed").length} Vehicles`, desc: "In studio workflow" },
                   { title: "Low Stock Alert", value: `${inventory.filter(i => i.status !== "good").length} Items`, desc: "Requires reorder" },
@@ -487,7 +506,7 @@ export default function DashboardPage() {
                 ].map((stat, i) => (
                   <div key={i} className="bg-[#0a0a0c] border border-neutral-900 p-5 rounded-xl">
                     <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-medium">{stat.title}</p>
-                    <p className="text-xl font-semibold text-white mt-2 font-mono tracking-tight">{stat.value}</p>
+                    <p className="text-lg sm:text-xl font-semibold text-white mt-2 font-mono tracking-tight">{stat.value}</p>
                     <p className="text-[10px] text-neutral-600 mt-1">{stat.desc}</p>
                   </div>
                 ))}
@@ -498,10 +517,10 @@ export default function DashboardPage() {
           {/* CRM TAB */}
           {activeTab === "customers" && (
              <div className="space-y-6 animate-in fade-in duration-300">
-               <div className="flex items-center justify-between">
+               <div className="flex flex-col sm:flex-row sm:items-center justify-between">
                 <div>
-                  <h1 className="text-xl font-serif tracking-wider text-white">CUSTOMER PROFILE DIRECTORY</h1>
-                  <p className="text-xs text-neutral-500 mt-1">Manage client records, vehicles, and contact information.</p>
+                  <h1 className="text-lg sm:text-xl font-serif tracking-wider text-white">CUSTOMER DIRECTORY</h1>
+                  <p className="text-[10px] sm:text-xs text-neutral-500 mt-1">Manage client records, vehicles, and contact information.</p>
                 </div>
               </div>
 
@@ -542,22 +561,22 @@ export default function DashboardPage() {
                     <table className="w-full text-sm text-left">
                       <thead className="text-[10px] text-neutral-400 uppercase bg-neutral-900/50 border-b border-neutral-800">
                         <tr>
-                          <th className="px-6 py-4 font-medium tracking-wider">Client Details</th>
-                          <th className="px-6 py-4 font-medium tracking-wider">Vehicle</th>
-                          <th className="px-6 py-4 font-medium tracking-wider">Plate No.</th>
-                          <th className="px-6 py-4 font-medium tracking-wider text-right">Status</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Client Details</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Vehicle</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Plate No.</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider text-right whitespace-nowrap">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-900">
                         {customers.map((customer) => (
                           <tr key={customer.id} className="hover:bg-neutral-900/20 transition-colors">
-                            <td className="px-6 py-4">
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <p className="font-medium text-white">{customer.name}</p>
                               <p className="text-xs text-neutral-500 mt-0.5">{customer.phone}</p>
                             </td>
-                            <td className="px-6 py-4 text-neutral-300">{customer.vehicle}</td>
-                            <td className="px-6 py-4 text-neutral-400 font-mono text-xs">{customer.plate}</td>
-                            <td className="px-6 py-4 text-right">
+                            <td className="px-4 sm:px-6 py-4 text-neutral-300 whitespace-nowrap">{customer.vehicle}</td>
+                            <td className="px-4 sm:px-6 py-4 text-neutral-400 font-mono text-xs whitespace-nowrap">{customer.plate}</td>
+                            <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                               <span className={`inline-flex items-center px-2 py-1 rounded text-[9px] uppercase tracking-wider font-medium ${
                                 customer.type === "Premium" ? "bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/20" : "bg-neutral-800 text-neutral-300 border border-neutral-700"
                               }`}>
@@ -577,19 +596,19 @@ export default function DashboardPage() {
           {/* JOBS TAB */}
           {activeTab === "jobs" && (
              <div className="space-y-6 animate-in fade-in duration-300 h-full flex flex-col">
-              <div className="flex items-center justify-between shrink-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between shrink-0 gap-4 sm:gap-0">
                 <div>
-                  <h1 className="text-xl font-serif tracking-wider text-white">UNIVERSAL BAY TRACKER</h1>
-                  <p className="text-xs text-neutral-500 mt-1">Monitor vehicles moving through studio operations.</p>
+                  <h1 className="text-lg sm:text-xl font-serif tracking-wider text-white">UNIVERSAL BAY TRACKER</h1>
+                  <p className="text-[10px] sm:text-xs text-neutral-500 mt-1">Monitor vehicles moving through studio operations.</p>
                 </div>
                 
                 <Dialog open={isJobModalOpen} onOpenChange={setIsJobModalOpen}>
                   <DialogTrigger asChild>
-                    <Button className="bg-neutral-800 hover:bg-neutral-700 text-white text-xs tracking-widest uppercase h-9">
+                    <Button className="w-full sm:w-auto bg-neutral-800 hover:bg-neutral-700 text-white text-xs tracking-widest uppercase h-9">
                       <Plus className="w-4 h-4 mr-2" /> New Job Ticket
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="bg-[#0a0a0c] border border-neutral-800 text-white shadow-2xl sm:max-w-[425px]">
+                  <DialogContent className="bg-[#0a0a0c] border border-neutral-800 text-white shadow-2xl w-[90vw] sm:max-w-[425px]">
                     <DialogHeader>
                       <DialogTitle className="text-[#D4AF37] font-serif tracking-widest uppercase text-lg">Create Job Ticket</DialogTitle>
                     </DialogHeader>
@@ -601,14 +620,14 @@ export default function DashboardPage() {
                           {customers.map(c => <option key={c.id} value={c.name}>{c.name} ({c.vehicle})</option>)}
                         </select>
                       </div>
-                      <div className="flex gap-3">
-                        <div className="space-y-1.5 w-1/3">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="space-y-1.5 w-full sm:w-1/3">
                           <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Category</label>
                           <select value={jobVehicleType} onChange={(e)=>setJobVehicleType(e.target.value as any)} className="w-full bg-black/50 border border-neutral-800 rounded-md h-9 text-sm px-3 text-white focus:ring-1 focus:ring-[#D4AF37]/50 focus:outline-none appearance-none" required>
                             <option value="Hatchback">Hatchback</option><option value="Sedan">Sedan</option><option value="SUV">SUV</option>
                           </select>
                         </div>
-                        <div className="space-y-1.5 w-2/3">
+                        <div className="space-y-1.5 w-full sm:w-2/3">
                           <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Service Required</label>
                           <select value={jobService} onChange={(e)=>setJobService(e.target.value)} className="w-full bg-black/50 border border-neutral-800 rounded-md h-9 text-sm px-3 text-white focus:ring-1 focus:ring-[#D4AF37]/50 focus:outline-none appearance-none" required>
                             {Object.keys(serviceCatalog).map(service => (<option key={service} value={service}>{service}</option>))}
@@ -627,9 +646,9 @@ export default function DashboardPage() {
                 </Dialog>
               </div>
 
-              <div className="flex gap-4 overflow-x-auto pb-4 pt-2 flex-1 items-start">
+              <div className="flex gap-4 overflow-x-auto pb-4 pt-2 flex-1 items-start snap-x">
                 {stages.map((stage) => (
-                  <div key={stage.id} className="min-w-[280px] w-[280px] bg-neutral-900/30 border border-neutral-800 rounded-xl flex flex-col max-h-full">
+                  <div key={stage.id} className="min-w-[280px] w-[280px] bg-neutral-900/30 border border-neutral-800 rounded-xl flex flex-col max-h-full snap-center">
                     <div className="p-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/50 rounded-t-xl shrink-0">
                       <h3 className="text-[11px] uppercase tracking-widest text-[#D4AF37] font-semibold">{stage.label}</h3>
                       <span className="bg-black text-neutral-400 text-[10px] px-2 py-0.5 rounded-full border border-neutral-800">
@@ -638,7 +657,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="p-3 flex flex-col gap-3 overflow-y-auto">
                       {jobs.filter(j => j.status === stage.id).map(job => (
-                        <div key={job.id} className="bg-[#0a0a0c] border border-neutral-800 rounded-lg p-4 shadow-lg group hover:border-neutral-600 transition-colors">
+                        <div key={job.id} className="bg-[#0a0a0c] border border-neutral-800 rounded-lg p-4 shadow-lg lg:group hover:border-neutral-600 transition-colors">
                           <div className="flex justify-between items-start mb-2">
                             <span className="text-[9px] text-neutral-500 tracking-wider font-mono">{job.id}</span>
                             <Clock className="w-3 h-3 text-neutral-600" />
@@ -647,11 +666,11 @@ export default function DashboardPage() {
                           <p className="text-[11px] text-neutral-400 mb-3">{job.customer}</p>
                           <div className="bg-neutral-900/50 px-2 py-1.5 rounded text-[10px] text-neutral-300 border border-neutral-800 mb-3">{job.service}</div>
                           {stage.id !== "ready" ? (
-                            <button onClick={() => advanceJob(job.id, job.status)} className="w-full flex items-center justify-center gap-2 py-1.5 rounded bg-neutral-800/50 text-neutral-400 text-[10px] uppercase tracking-wider hover:bg-[#D4AF37]/10 hover:text-[#D4AF37] transition-colors border border-transparent hover:border-[#D4AF37]/20 opacity-0 group-hover:opacity-100">
+                            <button onClick={() => advanceJob(job.id, job.status)} className="w-full flex items-center justify-center gap-2 py-1.5 rounded bg-neutral-800/50 text-neutral-400 text-[10px] uppercase tracking-wider hover:bg-[#D4AF37]/10 hover:text-[#D4AF37] transition-colors border border-transparent hover:border-[#D4AF37]/20 lg:opacity-0 lg:group-hover:opacity-100">
                               Move to Next Stage <ArrowRight className="w-3 h-3" />
                             </button>
                           ) : (
-                            <button onClick={() => advanceJob(job.id, job.status)} className="w-full flex items-center justify-center gap-2 py-1.5 rounded bg-emerald-900/30 text-emerald-400 text-[10px] uppercase tracking-wider hover:bg-emerald-900/60 transition-colors border border-transparent hover:border-emerald-900/50 opacity-0 group-hover:opacity-100">
+                            <button onClick={() => advanceJob(job.id, job.status)} className="w-full flex items-center justify-center gap-2 py-1.5 rounded bg-emerald-900/30 text-emerald-400 text-[10px] uppercase tracking-wider hover:bg-emerald-900/60 transition-colors border border-transparent hover:border-emerald-900/50 lg:opacity-0 lg:group-hover:opacity-100">
                               Mark as Delivered <CheckCircle2 className="w-3 h-3" />
                             </button>
                           )}
@@ -664,13 +683,13 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* DYNAMIC INVENTORY TAB */}
+          {/* INVENTORY TAB */}
           {activeTab === "inventory" && (
              <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between">
                 <div>
-                  <h1 className="text-xl font-serif tracking-wider text-white">STOCK ANALYSIS & PURCHASING</h1>
-                  <p className="text-xs text-neutral-500 mt-1">Log new stock deliveries. Purchases automatically sync to your P&L Expenses.</p>
+                  <h1 className="text-lg sm:text-xl font-serif tracking-wider text-white">STOCK & PURCHASING</h1>
+                  <p className="text-[10px] sm:text-xs text-neutral-500 mt-1">Log new stock deliveries. Purchases sync to your P&L.</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -684,29 +703,29 @@ export default function DashboardPage() {
                         <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Product Name</label>
                         <Input value={invtName} onChange={(e)=>setInvtName(e.target.value)} placeholder="e.g. System X Ceramic 50ml" className="bg-black/50 border-neutral-800 h-9 text-sm text-white" required />
                       </div>
-                      <div className="flex gap-3">
-                        <div className="space-y-1.5 w-1/2">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="space-y-1.5 w-full sm:w-1/2">
                           <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Category</label>
                           <select value={invtCategory} onChange={(e)=>setInvtCategory(e.target.value)} className="w-full bg-black/50 border border-neutral-800 rounded-md h-9 text-sm px-3 text-white focus:ring-1 focus:ring-[#D4AF37]/50 appearance-none" required>
                             <option>Coatings</option><option>Compounds</option><option>Chemicals</option><option>Consumables</option><option>Equipment</option>
                           </select>
                         </div>
-                        <div className="space-y-1.5 w-1/2">
+                        <div className="space-y-1.5 w-full sm:w-1/2">
                           <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Qty Added</label>
                           <Input type="number" value={invtQty} onChange={(e)=>setInvtQty(e.target.value)} placeholder="5" className="bg-black/50 border-neutral-800 h-9 text-sm text-white" required />
                         </div>
                       </div>
-                      <div className="flex gap-3">
-                        <div className="space-y-1.5 w-1/2">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="space-y-1.5 w-full sm:w-1/2">
                           <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Total Bill (₹)</label>
                           <Input type="number" value={invtPrice} onChange={(e)=>setInvtPrice(e.target.value)} placeholder="15000" className="bg-black/50 border-neutral-800 h-9 text-sm text-white font-mono" required />
                         </div>
-                        <div className="space-y-1.5 w-1/2">
-                          <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Date of Purchase</label>
-                          <Input type="date" value={invtDate} onChange={(e)=>setInvtDate(e.target.value)} className="bg-black/50 border-neutral-800 h-9 text-sm text-white block" required />
+                        <div className="space-y-1.5 w-full sm:w-1/2">
+                          <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Date</label>
+                          <Input type="date" value={invtDate} onChange={(e)=>setInvtDate(e.target.value)} className="bg-black/50 border-neutral-800 h-9 text-sm text-white block w-full" required />
                         </div>
                       </div>
-                      <Button type="submit" className="w-full bg-[#D4AF37] hover:bg-[#bfa032] text-black text-xs tracking-widest uppercase font-semibold h-10 mt-2">Add to Stock & Ledger</Button>
+                      <Button type="submit" className="w-full bg-[#D4AF37] hover:bg-[#bfa032] text-black text-xs tracking-widest uppercase font-semibold h-10 mt-2">Add to Stock</Button>
                     </form>
                   </CardContent>
                 </Card>
@@ -716,22 +735,22 @@ export default function DashboardPage() {
                     <table className="w-full text-sm text-left">
                       <thead className="text-[10px] text-neutral-400 uppercase bg-neutral-900/50 border-b border-neutral-800">
                         <tr>
-                          <th className="px-6 py-4 font-medium tracking-wider">Product & Date</th>
-                          <th className="px-6 py-4 font-medium tracking-wider">Category</th>
-                          <th className="px-6 py-4 font-medium tracking-wider">Purchase Price</th>
-                          <th className="px-6 py-4 font-medium tracking-wider text-right">Stock Level</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Product & Date</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Category</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Purchase Price</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider text-right whitespace-nowrap">Stock Level</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-900">
                         {inventory.map((item) => (
                           <tr key={item.id} className="hover:bg-neutral-900/20 transition-colors">
-                            <td className="px-6 py-4">
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <p className="font-medium text-white">{item.name}</p>
                               <p className="text-xs text-neutral-500 mt-0.5">{item.purchase_date || "Legacy Record"}</p>
                             </td>
-                            <td className="px-6 py-4"><span className="text-xs text-neutral-400 bg-neutral-800/50 px-2 py-1 rounded border border-neutral-800">{item.category}</span></td>
-                            <td className="px-6 py-4"><span className="text-white font-mono text-sm">₹{Number(item.price).toLocaleString('en-IN') || "0"}</span></td>
-                            <td className="px-6 py-4 text-right">
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap"><span className="text-[10px] text-neutral-400 bg-neutral-800/50 px-2 py-1 rounded border border-neutral-800">{item.category}</span></td>
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap"><span className="text-white font-mono text-sm">₹{Number(item.price).toLocaleString('en-IN') || "0"}</span></td>
+                            <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                               <span className="text-white font-mono text-sm mr-3">{item.qty} {item.unit}</span>
                               {item.status === "good" ? (
                                 <span className="inline-flex items-center px-2 py-1 rounded text-[9px] uppercase tracking-wider font-medium bg-emerald-900/20 text-emerald-400 border border-emerald-900/50">In Stock</span>
@@ -752,10 +771,10 @@ export default function DashboardPage() {
           {/* EXPENSES & P&L TAB */}
           {activeTab === "pnl" && (
              <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between">
                 <div>
-                  <h1 className="text-xl font-serif tracking-wider text-white">EXPENSES & PROFITABILITY</h1>
-                  <p className="text-xs text-neutral-500 mt-1">Track studio operational costs, salaries, rent, and calculate net profit.</p>
+                  <h1 className="text-lg sm:text-xl font-serif tracking-wider text-white">EXPENSES & P&L</h1>
+                  <p className="text-[10px] sm:text-xs text-neutral-500 mt-1">Track studio operational costs and calculate net profit.</p>
                 </div>
                 <RenderDateFilter />
               </div>
@@ -776,17 +795,17 @@ export default function DashboardPage() {
                           <option>Rent & Lease</option><option>Salary & Wages</option><option>Utilities (Electricity/Water)</option><option>Marketing & Ads</option><option>Maintenance</option><option>Other Expenses</option>
                         </select>
                       </div>
-                      <div className="flex gap-3">
-                        <div className="space-y-1.5 w-1/2">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="space-y-1.5 w-full sm:w-1/2">
                           <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Amount (₹)</label>
                           <Input type="number" value={expAmount} onChange={(e)=>setExpAmount(e.target.value)} placeholder="15000" className="bg-black/50 border-neutral-800 h-9 text-sm text-white font-mono" required />
                         </div>
-                        <div className="space-y-1.5 w-1/2">
+                        <div className="space-y-1.5 w-full sm:w-1/2">
                           <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Date</label>
-                          <Input type="date" value={expDate} onChange={(e)=>setExpDate(e.target.value)} className="bg-black/50 border-neutral-800 h-9 text-sm text-white block" required />
+                          <Input type="date" value={expDate} onChange={(e)=>setExpDate(e.target.value)} className="bg-black/50 border-neutral-800 h-9 text-sm text-white block w-full" required />
                         </div>
                       </div>
-                      <Button type="submit" className="w-full bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-900/50 text-xs tracking-widest uppercase font-semibold h-10 mt-2 transition-colors">Deduct from Ledger</Button>
+                      <Button type="submit" className="w-full bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-900/50 text-xs tracking-widest uppercase font-semibold h-10 mt-2 transition-colors">Deduct Expense</Button>
                     </form>
                   </CardContent>
                 </Card>
@@ -796,28 +815,28 @@ export default function DashboardPage() {
                     <table className="w-full text-sm text-left">
                       <thead className="text-[10px] text-neutral-400 uppercase bg-neutral-900/50 border-b border-neutral-800">
                         <tr>
-                          <th className="px-6 py-4 font-medium tracking-wider">Date & ID</th>
-                          <th className="px-6 py-4 font-medium tracking-wider">Description</th>
-                          <th className="px-6 py-4 font-medium tracking-wider">Category</th>
-                          <th className="px-6 py-4 font-medium tracking-wider text-right">Amount</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Date & ID</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Description</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Category</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider text-right whitespace-nowrap">Amount</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-900">
                         {filteredExpenses.map((exp) => (
                           <tr key={exp.id} className="hover:bg-neutral-900/20 transition-colors">
-                            <td className="px-6 py-4">
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <p className="font-medium text-white">{exp.date}</p>
                               <p className="text-[10px] text-neutral-500 mt-0.5 font-mono">{exp.id.substring(0, 12)}</p>
                             </td>
-                            <td className="px-6 py-4 text-neutral-300">{exp.description}</td>
-                            <td className="px-6 py-4">
-                              <span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded border ${
+                            <td className="px-4 sm:px-6 py-4 text-neutral-300 whitespace-nowrap">{exp.description}</td>
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                              <span className={`text-[9px] uppercase tracking-wider px-2 py-1 rounded border ${
                                 exp.category === "Inventory Purchase" 
                                   ? "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/20" 
                                   : "text-neutral-400 bg-neutral-800/50 border-neutral-800"
                               }`}>{exp.category}</span>
                             </td>
-                            <td className="px-6 py-4 text-right"><span className="text-red-400 font-mono text-sm">- ₹{Number(exp.amount).toLocaleString('en-IN')}</span></td>
+                            <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap"><span className="text-red-400 font-mono text-sm">- ₹{Number(exp.amount).toLocaleString('en-IN')}</span></td>
                           </tr>
                         ))}
                         {filteredExpenses.length === 0 && (
@@ -834,10 +853,10 @@ export default function DashboardPage() {
           {/* FINANCE & BILLING TAB */}
           {activeTab === "finances" && (
             <div className="space-y-6 animate-in fade-in duration-300">
-               <div className="flex items-center justify-between">
+               <div className="flex flex-col sm:flex-row sm:items-center justify-between">
                 <div>
-                  <h1 className="text-xl font-serif tracking-wider text-white">FINANCE & BILLING RECONCILIATION</h1>
-                  <p className="text-xs text-neutral-500 mt-1">Generate client invoices and track studio revenue.</p>
+                  <h1 className="text-lg sm:text-xl font-serif tracking-wider text-white">BILLING RECONCILIATION</h1>
+                  <p className="text-[10px] sm:text-xs text-neutral-500 mt-1">Generate client invoices and track studio revenue.</p>
                 </div>
                 <RenderDateFilter />
               </div>
@@ -855,14 +874,14 @@ export default function DashboardPage() {
                           {customers.map(c => <option key={c.id} value={c.name}>{c.name} ({c.vehicle})</option>)}
                         </select>
                       </div>
-                      <div className="flex gap-3">
-                        <div className="space-y-1.5 w-1/3">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="space-y-1.5 w-full sm:w-1/3">
                           <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Category</label>
                           <select value={invVehicleType} onChange={(e)=>setInvVehicleType(e.target.value as any)} className="w-full bg-black/50 border border-neutral-800 rounded-md h-9 text-sm px-3 text-white focus:ring-1 focus:ring-[#D4AF37]/50 focus:outline-none appearance-none" required>
                             <option value="Hatchback">Hatchback</option><option value="Sedan">Sedan</option><option value="SUV">SUV</option>
                           </select>
                         </div>
-                        <div className="space-y-1.5 w-2/3">
+                        <div className="space-y-1.5 w-full sm:w-2/3">
                           <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Studio Service</label>
                           <select value={invService} onChange={(e)=>setInvService(e.target.value)} className="w-full bg-black/50 border border-neutral-800 rounded-md h-9 text-sm px-3 text-white focus:ring-1 focus:ring-[#D4AF37]/50 focus:outline-none appearance-none" required>
                             {Object.keys(serviceCatalog).map(service => (<option key={service} value={service}>{service}</option>))}
@@ -889,19 +908,19 @@ export default function DashboardPage() {
                     <table className="w-full text-sm text-left">
                       <thead className="text-[10px] text-neutral-400 uppercase bg-neutral-900/50 border-b border-neutral-800">
                         <tr>
-                          <th className="px-6 py-4 font-medium tracking-wider">Invoice / Date</th>
-                          <th className="px-6 py-4 font-medium tracking-wider">Client & Service</th>
-                          <th className="px-6 py-4 font-medium tracking-wider">Amount</th>
-                          <th className="px-6 py-4 font-medium tracking-wider text-right">Status / Actions</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Invoice / Date</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Client & Service</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Amount</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider text-right whitespace-nowrap">Status / Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-900">
                         {filteredInvoices.map((inv) => (
                           <tr key={inv.id} className="hover:bg-neutral-900/20 transition-colors">
-                            <td className="px-6 py-4"><p className="font-mono font-medium text-white">{inv.id}</p><p className="text-xs text-neutral-500 mt-0.5">{inv.date}</p></td>
-                            <td className="px-6 py-4"><p className="text-sm text-white">{inv.customer}</p><p className="text-[11px] text-neutral-400 mt-0.5 truncate max-w-[200px]">{inv.service}</p></td>
-                            <td className="px-6 py-4"><span className="text-white font-mono text-sm">₹{Number(inv.amount).toLocaleString('en-IN')}</span></td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap"><p className="font-mono font-medium text-white">{inv.id}</p><p className="text-xs text-neutral-500 mt-0.5">{inv.date}</p></td>
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap"><p className="text-sm text-white">{inv.customer}</p><p className="text-[11px] text-neutral-400 mt-0.5 truncate max-w-[200px]">{inv.service}</p></td>
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap"><span className="text-white font-mono text-sm">₹{Number(inv.amount).toLocaleString('en-IN')}</span></td>
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center justify-end gap-3">
                                 <span className="inline-flex items-center px-2 py-1 rounded text-[9px] uppercase tracking-wider font-medium bg-emerald-900/20 text-emerald-400 border border-emerald-900/50">PAID</span>
                                 <button onClick={() => shareToWhatsApp(inv)} className="p-1.5 text-neutral-500 hover:text-emerald-400 hover:bg-emerald-400/10 rounded transition-colors" title="Send WhatsApp Link"><MessageCircle className="w-4 h-4" /></button>
