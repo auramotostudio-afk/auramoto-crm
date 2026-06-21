@@ -12,7 +12,6 @@ import {
   LogOut, 
   Car,
   Plus,
-  Search,
   ArrowRight,
   Clock,
   AlertTriangle,
@@ -243,6 +242,13 @@ export default function DashboardPage() {
     fetchAllData();
   };
 
+  // --- TOGGLE INVOICE STATUS ---
+  const toggleInvoiceStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === "Pending" ? "Paid" : "Pending";
+    await supabase.from('invoices').update({ status: newStatus }).eq('id', id);
+    fetchAllData();
+  };
+
   const handleAddInventory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!invtName || !invtQty || !invtPrice || !invtDate) return;
@@ -262,29 +268,71 @@ export default function DashboardPage() {
     fetchAllData();
   };
 
+  // --- REFINED WHATSAPP SHARING ---
   const shareToWhatsApp = (inv: any) => {
     const custRecord = customers.find(c => c.name === inv.customer);
     let phone = custRecord ? custRecord.phone : "";
     phone = phone.replace(/\D/g,'');
     if(phone.length === 10) phone = `91${phone}`;
-    const text = `*AuraMoto Detailing Studio* 🚗✨\n\nHello ${inv.customer},\nThank you for choosing us! Here are your service details:\n\n*Invoice #*: ${inv.id}\n*Service*: ${inv.service}\n*Total Amount*: ₹${Number(inv.amount).toLocaleString('en-IN')}\n\nWe'd love to hear about your experience! Please leave us a review: https://g.page/r/example\nVisit our website: www.auramotostudio.com\n\n🎁 *Special Offer:* Get 10% off your next wash! Show this message at the studio.`;
+
+    const isPaid = inv.status === 'Paid' || inv.status === 'PAID';
+    
+    // Website link placed prominently for thumbnail scraping
+    const text = `*AuraMoto Detailing Studio* 🚘✨
+
+Hello ${inv.customer},
+Thank you for trusting us with your vehicle! 
+
+*Invoice #*: ${inv.id}
+*Service*: ${inv.service}
+*Total Amount*: ₹${Number(inv.amount).toLocaleString('en-IN')}
+*Status*: ${isPaid ? '✅ PAID' : '⏳ PENDING'}
+
+🌐 Visit our official website:
+https://royal-night-d219.auramotostudio.workers.dev/
+
+*(Google Review link will be updated here once verified)*
+
+🎁 *Special Offer:* Get 10% off your next wash! Show this message at the studio.`;
+
     window.open(phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  // --- REFINED PDF GENERATOR (REAL INVOICE/RECEIPT LOGIC) ---
   const downloadInvoice = async (inv: any) => {
     const doc = new jsPDF();
+    const isPaid = inv.status === 'Paid' || inv.status === 'PAID';
+    const docTitle = isPaid ? "PAYMENT RECEIPT" : "INVOICE";
+
     try {
       const logoImg = await loadImage('/icon.png');
       doc.addImage(logoImg, 'PNG', 15, 12, 25, 12); 
     } catch (e) { console.warn(e); }
 
+    // Studio Header
     doc.setFont("helvetica", "bold").setFontSize(16).setTextColor(212, 175, 55); 
     doc.text("AuraMoto Detailing Studio", 45, 18);
     doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(100, 100, 100);
     doc.text("Premium Automotive Detailing & Care", 45, 23).text("Dabra Studio, Madhya Pradesh", 45, 28);
-    doc.setFont("helvetica", "bold").setFontSize(16).setTextColor(40, 40, 40).text("INVOICE", 155, 18);
-    doc.setFont("helvetica", "normal").setFontSize(9).text(`Invoice #: ${inv.id}`, 155, 24).text(`Date: ${inv.date}`, 155, 29).text(`Status: ${inv.status.toUpperCase()}`, 155, 34);
+    
+    // Document Title (Dynamic)
+    doc.setFont("helvetica", "bold").setFontSize(16).setTextColor(40, 40, 40).text(docTitle, 155, 18);
+    doc.setFont("helvetica", "normal").setFontSize(9).text(`${isPaid ? 'Receipt' : 'Invoice'} #: ${inv.id}`, 155, 24).text(`Date: ${inv.date}`, 155, 29);
+    
+    // Status Color Logic
+    if (isPaid) {
+      doc.setTextColor(16, 185, 129); // Emerald Green
+      doc.text(`Status: PAID`, 155, 34);
+    } else {
+      doc.setTextColor(245, 158, 11); // Amber Orange
+      doc.text(`Status: PENDING`, 155, 34);
+    }
+    doc.setTextColor(40, 40, 40); // Reset to dark gray
+
+    // Line
     doc.setDrawColor(212, 175, 55).setLineWidth(0.5).line(15, 42, 195, 42);
+    
+    // Client Info
     doc.setFont("helvetica", "bold").setTextColor(40, 40, 40).text("BILLED TO:", 15, 55);
     doc.setFont("helvetica", "normal").text(inv.customer, 15, 61);
     
@@ -293,10 +341,13 @@ export default function DashboardPage() {
       doc.text(`Vehicle: ${custRecord.vehicle}`, 15, 67).text(`License Plate: ${custRecord.plate}`, 15, 73).text(`Phone: ${custRecord.phone}`, 15, 79);
     }
 
+    // Table
     doc.setFillColor(10, 10, 12).rect(15, 95, 180, 10, "F");
     doc.setTextColor(255, 255, 255).setFont("helvetica", "bold").text("SERVICE DESCRIPTION", 20, 101.5).text("TOTAL AMOUNT", 160, 101.5);
     doc.setTextColor(40, 40, 40).setFont("helvetica", "normal").text(inv.service, 20, 115).text(`Rs. ${inv.amount.toLocaleString('en-IN')}`, 160, 115);
     doc.setDrawColor(230, 230, 230).line(15, 125, 195, 125);
+    
+    // Totals
     doc.setFont("helvetica", "bold").setFontSize(11).text("GRAND TOTAL:", 125, 145).setTextColor(212, 175, 55).text(`Rs. ${inv.amount.toLocaleString('en-IN')}`, 160, 145);
 
     try {
@@ -304,8 +355,9 @@ export default function DashboardPage() {
       doc.addImage(sigImg, 'PNG', 130, 220, 50, 12); 
     } catch (e) { console.warn(e); }
 
-    doc.setTextColor(150, 150, 150).setFont("helvetica", "normal").setFontSize(8).text("Thank you for choosing AuraMoto.", 105, 270, { align: "center" }).text("This is a system-generated invoice.", 105, 275, { align: "center" });
-    doc.save(`${inv.id}_AuraMoto_Invoice.pdf`);
+    doc.setTextColor(150, 150, 150).setFont("helvetica", "normal").setFontSize(8).text("Thank you for choosing AuraMoto.", 105, 270, { align: "center" }).text("This is a system-generated document.", 105, 275, { align: "center" });
+    
+    doc.save(`${inv.id}_AuraMoto_${isPaid ? 'Receipt' : 'Invoice'}.pdf`);
   };
 
   const stages = [
@@ -922,7 +974,18 @@ export default function DashboardPage() {
                             <td className="px-4 sm:px-6 py-4 whitespace-nowrap"><span className="text-white font-mono text-sm">₹{Number(inv.amount).toLocaleString('en-IN')}</span></td>
                             <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center justify-end gap-3">
-                                <span className="inline-flex items-center px-2 py-1 rounded text-[9px] uppercase tracking-wider font-medium bg-emerald-900/20 text-emerald-400 border border-emerald-900/50">PAID</span>
+                                
+                                <button 
+                                  onClick={() => toggleInvoiceStatus(inv.id, inv.status)} 
+                                  className={`inline-flex items-center px-2 py-1 rounded text-[9px] uppercase tracking-wider font-medium transition-colors ${
+                                    (inv.status === 'Paid' || inv.status === 'PAID') 
+                                      ? 'bg-emerald-900/20 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900/40' 
+                                      : 'bg-amber-900/20 text-amber-400 border border-amber-900/50 hover:bg-amber-900/40'
+                                  }`}
+                                >
+                                  {(inv.status === 'Paid' || inv.status === 'PAID') ? 'PAID' : 'PENDING'}
+                                </button>
+                                
                                 <button onClick={() => shareToWhatsApp(inv)} className="p-1.5 text-neutral-500 hover:text-emerald-400 hover:bg-emerald-400/10 rounded transition-colors" title="Send WhatsApp Link"><MessageCircle className="w-4 h-4" /></button>
                                 <button onClick={() => downloadInvoice(inv)} className="p-1.5 text-neutral-500 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded transition-colors" title="Download PDF"><Download className="w-4 h-4" /></button>
                               </div>
