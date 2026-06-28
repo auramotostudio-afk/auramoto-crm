@@ -72,6 +72,10 @@ export default function DashboardPage() {
   const [invVehicleType, setInvVehicleType] = useState<"Hatchback" | "Sedan" | "SUV">("SUV");
   const [invService, setInvService] = useState("Premium Foam Wash");
   const [invAmount, setInvAmount] = useState("");
+  
+  // NEW STATE: GST and Payment Tracking
+  const [applyGst, setApplyGst] = useState(false);
+  const [invPaymentMode, setInvPaymentMode] = useState("Pending"); 
 
   const [jobCustomer, setJobCustomer] = useState("");
   const [jobVehicleType, setJobVehicleType] = useState<"Hatchback" | "Sedan" | "SUV">("SUV");
@@ -206,14 +210,36 @@ export default function DashboardPage() {
   const handleGenerateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!invCustomer || !invAmount) return;
+    
+    // Calculate Final Amounts
+    const baseAmount = parseFloat(invAmount) || 0;
+    const gstAmount = applyGst ? baseAmount * 0.18 : 0;
+    const finalAmount = baseAmount + gstAmount;
+    
     const dateStr = new Date().toISOString().split('T')[0]; 
-    await supabase.from('invoices').insert([{ id: `AM-${1000 + invoices.length + 1}`, customer: invCustomer, service: `${invService} (${invVehicleType})`, amount: parseFloat(invAmount), status: "Pending", date: dateStr }]);
-    setInvCustomer(""); setInvAmount("");
+    const finalStatus = invPaymentMode === "Pending" ? "Pending" : `Paid (${invPaymentMode})`;
+    const finalService = applyGst ? `${invService} (${invVehicleType}) + 18% GST` : `${invService} (${invVehicleType})`;
+
+    await supabase.from('invoices').insert([{ 
+      id: `AM-${1000 + invoices.length + 1}`, 
+      customer: invCustomer, 
+      service: finalService, 
+      amount: finalAmount, 
+      status: finalStatus, 
+      date: dateStr 
+    }]);
+    
+    setInvCustomer(""); 
+    setInvAmount("");
+    setApplyGst(false);
+    setInvPaymentMode("Pending");
     fetchAllData();
   };
 
   const toggleInvoiceStatus = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === "Pending" ? "Paid" : "Pending";
+    // If it's already some form of PAID, toggle back to pending. Otherwise default toggle to Paid (Cash)
+    const isCurrentlyPaid = currentStatus?.toUpperCase().includes('PAID');
+    const newStatus = isCurrentlyPaid ? "Pending" : "Paid (Cash)";
     await supabase.from('invoices').update({ status: newStatus }).eq('id', id);
     fetchAllData();
   };
@@ -240,7 +266,7 @@ export default function DashboardPage() {
   // --- CORE PDF GENERATOR HELPER ---
   const generatePdfDocument = async (inv: any) => {
     const doc = new jsPDF();
-    const isPaid = inv.status === 'Paid' || inv.status === 'PAID';
+    const isPaid = inv.status?.toUpperCase().includes('PAID');
     const docTitle = isPaid ? "PAYMENT RECEIPT" : "INVOICE";
 
     try {
@@ -258,7 +284,7 @@ export default function DashboardPage() {
     
     if (isPaid) {
       doc.setTextColor(16, 185, 129);
-      doc.text(`Status: PAID`, 155, 34);
+      doc.text(`Status: ${inv.status.toUpperCase()}`, 155, 34);
     } else {
       doc.setTextColor(245, 158, 11);
       doc.text(`Status: PENDING`, 155, 34);
@@ -295,14 +321,14 @@ export default function DashboardPage() {
   // --- DOWNLOAD PDF LOCALLY ---
   const downloadInvoice = async (inv: any) => {
     const doc = await generatePdfDocument(inv);
-    const isPaid = inv.status === 'Paid' || inv.status === 'PAID';
+    const isPaid = inv.status?.toUpperCase().includes('PAID');
     doc.save(`${inv.id}_AuraMoto_${isPaid ? 'Receipt' : 'Invoice'}.pdf`);
   };
 
-  // --- SHARE VIA WHATSAPP (FIXED TEXT & LOGIC) ---
+  // --- SHARE VIA WHATSAPP ---
   const shareToWhatsApp = async (inv: any) => {
     setIsUploading(inv.id);
-    const isPaid = inv.status === 'Paid' || inv.status === 'PAID';
+    const isPaid = inv.status?.toUpperCase().includes('PAID');
     
     // 1. Generate PDF
     const doc = await generatePdfDocument(inv);
@@ -329,7 +355,7 @@ export default function DashboardPage() {
     phone = phone.replace(/\D/g,'');
     if(phone.length === 10) phone = `91${phone}`;
     
-    // Website link placed at the absolute top with a cache-buster (?v=1) to force the Gold Logo preview
+    // Updated WhatsApp Text Template with new Links
     const text = `*AuraMoto Detailing Studio*
 https://auramoto.pages.dev/?v=1
 
@@ -339,12 +365,13 @@ Thank you for trusting us with your vehicle!
 *Invoice #*: ${inv.id}
 *Service*: ${inv.service}
 *Total Amount*: Rs. ${Number(inv.amount).toLocaleString('en-IN')}
-*Status*: ${isPaid ? 'PAID' : 'PENDING'}
+*Status*: ${inv.status}
 
-*Download your Invoice:*
+*Download your Invoice Document:*
 ${invoiceUrl}
 
-*(Google Review link will be updated here once verified)*
+*Rate your experience & get directions:*
+https://maps.app.goo.gl/dMsSeh28bTJAPQbm6
 
 We truly appreciate your business and look forward to serving you again. Drive safe and stay shining!`;
 
@@ -933,16 +960,56 @@ We truly appreciate your business and look forward to serving you again. Drive s
                           </select>
                         </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Base Amount (₹)</label>
-                        <Input type="number" value={invAmount} onChange={(e)=>setInvAmount(e.target.value)} className="bg-black/50 border-neutral-800 h-9 text-sm text-white font-mono" required />
-                      </div>
-                      <div className="bg-neutral-900/40 border border-neutral-800 p-4 rounded-lg mt-4">
-                        <div className="flex justify-between text-sm text-white font-semibold">
-                          <span>Grand Total:</span>
-                          <span className="font-mono text-[#D4AF37]">₹{Number(invAmount).toLocaleString('en-IN')}</span>
+
+                      {/* AMOUNT & GST TOGGLE */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="space-y-1.5 w-full sm:w-1/2">
+                          <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Base Amount (₹)</label>
+                          <Input type="number" value={invAmount} onChange={(e)=>setInvAmount(e.target.value)} className="bg-black/50 border-neutral-800 h-9 text-sm text-white font-mono" required />
+                        </div>
+                        <div className="space-y-1.5 w-full sm:w-1/2 flex flex-col justify-end pb-1.5">
+                          <label className="flex items-center gap-2 cursor-pointer group">
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${applyGst ? 'bg-[#D4AF37] border-[#D4AF37]' : 'border-neutral-600 group-hover:border-[#D4AF37]'}`}>
+                              {applyGst && <CheckCircle2 className="w-3 h-3 text-black" />}
+                            </div>
+                            <span className="text-[10px] tracking-wider text-neutral-400 uppercase group-hover:text-white transition-colors">Add 18% GST</span>
+                            <input type="checkbox" checked={applyGst} onChange={(e) => setApplyGst(e.target.checked)} className="hidden" />
+                          </label>
                         </div>
                       </div>
+
+                      {/* PAYMENT TRACKING */}
+                      <div className="space-y-1.5 mt-2">
+                        <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Payment & Status</label>
+                        <select value={invPaymentMode} onChange={(e)=>setInvPaymentMode(e.target.value)} className="w-full bg-black/50 border border-neutral-800 rounded-md h-9 text-sm px-3 text-white focus:ring-1 focus:ring-[#D4AF37]/50 focus:outline-none appearance-none" required>
+                          <option value="Pending">Pending (Unpaid)</option>
+                          <option value="Cash">Paid via Cash</option>
+                          <option value="UPI">Paid via UPI</option>
+                          <option value="Card">Paid via Card/POS</option>
+                          <option value="Bank Transfer">Paid via Bank Transfer</option>
+                        </select>
+                      </div>
+
+                      {/* DYNAMIC TOTAL PREVIEW */}
+                      <div className="bg-neutral-900/40 border border-neutral-800 p-4 rounded-lg mt-4 space-y-2">
+                        <div className="flex justify-between text-xs text-neutral-400">
+                          <span>Base Amount:</span>
+                          <span className="font-mono">₹{(parseFloat(invAmount) || 0).toLocaleString('en-IN')}</span>
+                        </div>
+                        {applyGst && (
+                          <div className="flex justify-between text-xs text-neutral-400">
+                            <span>GST (18%):</span>
+                            <span className="font-mono">₹{((parseFloat(invAmount) || 0) * 0.18).toLocaleString('en-IN')}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm text-white font-semibold pt-2 border-t border-neutral-800 mt-2">
+                          <span>Grand Total:</span>
+                          <span className="font-mono text-[#D4AF37]">
+                            ₹{((parseFloat(invAmount) || 0) * (applyGst ? 1.18 : 1)).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      </div>
+                      
                       <Button type="submit" className="w-full bg-[#D4AF37] hover:bg-[#bfa032] text-black text-xs tracking-widest uppercase font-semibold h-10 mt-2">Generate Bill</Button>
                     </form>
                   </CardContent>
@@ -955,7 +1022,7 @@ We truly appreciate your business and look forward to serving you again. Drive s
                         <tr>
                           <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Invoice / Date</th>
                           <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Client & Service</th>
-                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Amount</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Total Amount</th>
                           <th className="px-4 sm:px-6 py-4 font-medium tracking-wider text-right whitespace-nowrap">Status / Actions</th>
                         </tr>
                       </thead>
@@ -971,12 +1038,13 @@ We truly appreciate your business and look forward to serving you again. Drive s
                                 <button 
                                   onClick={() => toggleInvoiceStatus(inv.id, inv.status)} 
                                   className={`inline-flex items-center px-2 py-1 rounded text-[9px] uppercase tracking-wider font-medium transition-colors ${
-                                    (inv.status === 'Paid' || inv.status === 'PAID') 
+                                    inv.status?.toUpperCase().includes('PAID') 
                                       ? 'bg-emerald-900/20 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900/40' 
                                       : 'bg-amber-900/20 text-amber-400 border border-amber-900/50 hover:bg-amber-900/40'
                                   }`}
+                                  title="Click to toggle Paid/Pending"
                                 >
-                                  {(inv.status === 'Paid' || inv.status === 'PAID') ? 'PAID' : 'PENDING'}
+                                  {inv.status?.toUpperCase().includes('PAID') ? inv.status.toUpperCase() : 'PENDING'}
                                 </button>
                                 
                                 <button 
