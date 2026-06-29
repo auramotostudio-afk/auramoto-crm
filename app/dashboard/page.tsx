@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { jsPDF } from "jspdf";
 import { 
-  Users, ClipboardList, Package, IndianRupee, LayoutDashboard, LogOut, Car, Plus, ArrowRight, Clock, AlertTriangle, FileText, Download, TrendingUp, TrendingDown, Receipt, MessageCircle, Filter, CheckCircle2, Lock, Menu, X
+  Users, ClipboardList, Package, IndianRupee, LayoutDashboard, LogOut, Car, Plus, ArrowRight, Clock, AlertTriangle, FileText, Download, TrendingUp, TrendingDown, Receipt, MessageCircle, Filter, CheckCircle2, Lock, Menu, X, Search, History, ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,17 +63,22 @@ export default function DashboardPage() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
+  // Customer Management State
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newVehicle, setNewVehicle] = useState("");
   const [newPlate, setNewPlate] = useState("");
+  
+  // Customer Search & Profile State
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+  const [isCustomerProfileOpen, setIsCustomerProfileOpen] = useState(false);
   
   const [invCustomer, setInvCustomer] = useState("");
   const [invVehicleType, setInvVehicleType] = useState<"Hatchback" | "Sedan" | "SUV">("SUV");
   const [invService, setInvService] = useState("Premium Foam Wash");
   const [invAmount, setInvAmount] = useState("");
   
-  // NEW STATE: GST and Payment Tracking
   const [applyGst, setApplyGst] = useState(false);
   const [invPaymentMode, setInvPaymentMode] = useState("Pending"); 
 
@@ -172,6 +177,13 @@ export default function DashboardPage() {
   const filteredInvoices = getFilteredData(invoices, 'date');
   const filteredExpenses = getFilteredData(expenses, 'date');
 
+  // Customer Filtering Logic
+  const filteredCustomers = customers.filter(c => 
+    c.name?.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+    c.phone?.includes(customerSearchQuery) ||
+    c.plate?.toLowerCase().includes(customerSearchQuery.toLowerCase())
+  );
+
   const totalRevenue = filteredInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
   const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
   const netProfit = totalRevenue - totalExpenses;
@@ -183,6 +195,11 @@ export default function DashboardPage() {
     await supabase.from('customers').insert([{ name: newName, phone: newPhone, vehicle: newVehicle, plate: newPlate.toUpperCase(), type: type }]);
     setNewName(""); setNewPhone(""); setNewVehicle(""); setNewPlate("");
     fetchAllData();
+  };
+
+  const openCustomerProfile = (customer: any) => {
+    setSelectedCustomer(customer);
+    setIsCustomerProfileOpen(true);
   };
 
   const handleAddJob = async (e: React.FormEvent) => {
@@ -211,7 +228,6 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!invCustomer || !invAmount) return;
     
-    // Calculate Final Amounts
     const baseAmount = parseFloat(invAmount) || 0;
     const gstAmount = applyGst ? baseAmount * 0.18 : 0;
     const finalAmount = baseAmount + gstAmount;
@@ -237,7 +253,6 @@ export default function DashboardPage() {
   };
 
   const toggleInvoiceStatus = async (id: string, currentStatus: string) => {
-    // If it's already some form of PAID, toggle back to pending. Otherwise default toggle to Paid (Cash)
     const isCurrentlyPaid = currentStatus?.toUpperCase().includes('PAID');
     const newStatus = isCurrentlyPaid ? "Pending" : "Paid (Cash)";
     await supabase.from('invoices').update({ status: newStatus }).eq('id', id);
@@ -318,44 +333,35 @@ export default function DashboardPage() {
     return doc;
   };
 
-  // --- DOWNLOAD PDF LOCALLY ---
   const downloadInvoice = async (inv: any) => {
     const doc = await generatePdfDocument(inv);
     const isPaid = inv.status?.toUpperCase().includes('PAID');
     doc.save(`${inv.id}_AuraMoto_${isPaid ? 'Receipt' : 'Invoice'}.pdf`);
   };
 
-  // --- SHARE VIA WHATSAPP ---
   const shareToWhatsApp = async (inv: any) => {
     setIsUploading(inv.id);
     const isPaid = inv.status?.toUpperCase().includes('PAID');
     
-    // 1. Generate PDF
     const doc = await generatePdfDocument(inv);
     const pdfBlob = doc.output('blob');
     const fileName = `${inv.id}_AuraMoto_${isPaid ? 'Receipt' : 'Invoice'}.pdf`;
 
-    // 2. Upload to Supabase 'invoices' bucket
     const { error } = await supabase.storage.from('invoices').upload(fileName, pdfBlob, {
       contentType: 'application/pdf',
       upsert: true
     });
 
-    if (error) {
-      console.error("Supabase Upload Blocked:", error);
-    }
+    if (error) console.error("Supabase Upload Blocked:", error);
 
-    // 3. Get the URL
     const { data: publicUrlData } = supabase.storage.from('invoices').getPublicUrl(fileName);
     const invoiceUrl = publicUrlData.publicUrl;
 
-    // 4. Prepare Text and Open WhatsApp
     const custRecord = customers.find(c => c.name === inv.customer);
     let phone = custRecord ? custRecord.phone : "";
     phone = phone.replace(/\D/g,'');
     if(phone.length === 10) phone = `91${phone}`;
     
-    // Updated WhatsApp Text Template with new Links
     const text = `*AuraMoto Detailing Studio*
 https://auramoto.pages.dev/?v=1
 
@@ -453,6 +459,73 @@ We truly appreciate your business and look forward to serving you again. Drive s
   return (
     <div className="flex h-screen w-screen bg-[#060608] text-white overflow-hidden font-sans relative">
       
+      {/* CUSTOMER PROFILE MODAL */}
+      <Dialog open={isCustomerProfileOpen} onOpenChange={setIsCustomerProfileOpen}>
+        <DialogContent className="bg-[#0a0a0c] border border-neutral-800 text-white shadow-2xl w-[95vw] sm:max-w-[750px] max-h-[85vh] overflow-y-auto">
+          {selectedCustomer && (
+            <>
+              <DialogHeader className="border-b border-neutral-800 pb-4">
+                <DialogTitle className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[#D4AF37] font-serif tracking-widest uppercase text-xl sm:text-2xl">{selectedCustomer.plate}</span>
+                    <span className="text-sm text-neutral-400 font-medium tracking-wide mt-1">Client: {selectedCustomer.name}</span>
+                  </div>
+                  <span className={`px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold ${selectedCustomer.type === "Premium" ? "bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30" : "bg-neutral-800 text-neutral-300 border border-neutral-700"}`}>
+                    {selectedCustomer.type} Tier
+                  </span>
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                {/* Contact & Vehicle Info */}
+                <div className="space-y-6">
+                  <div className="bg-black/40 border border-neutral-800 p-4 rounded-xl space-y-4">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Contact Number</p>
+                      <p className="text-sm font-medium text-white">{selectedCustomer.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Vehicle Make & Model</p>
+                      <p className="text-sm font-medium text-white">{selectedCustomer.vehicle}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Registered Date</p>
+                      <p className="text-sm font-medium text-white">{new Date(selectedCustomer.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Service & Billing History */}
+                <div className="space-y-4 md:border-l md:border-neutral-800 md:pl-6">
+                  <h4 className="text-xs uppercase tracking-widest text-[#D4AF37] flex items-center gap-2 mb-3">
+                    <History className="w-4 h-4" /> Lifetime Service Record
+                  </h4>
+                  <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                    {invoices.filter(inv => inv.customer === selectedCustomer.name).length === 0 ? (
+                      <p className="text-xs text-neutral-500 italic p-4 text-center bg-neutral-900/30 rounded border border-neutral-800 border-dashed">No service records found for this client.</p>
+                    ) : (
+                      invoices.filter(inv => inv.customer === selectedCustomer.name).map(record => (
+                        <div key={record.id} className="bg-neutral-900/50 p-4 rounded-lg border border-neutral-800 hover:border-neutral-600 transition-colors">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-[10px] text-neutral-400 font-mono bg-black px-2 py-0.5 rounded">{record.date}</span>
+                            <span className={`text-[9px] uppercase tracking-wider px-2 py-1 rounded font-medium ${record.status?.toUpperCase().includes('PAID') ? 'text-emerald-400 bg-emerald-400/10 border border-emerald-900/50' : 'text-amber-400 bg-amber-400/10 border border-amber-900/50'}`}>{record.status}</span>
+                          </div>
+                          <p className="text-xs font-medium text-white mb-2 leading-relaxed">{record.service}</p>
+                          <div className="flex justify-between items-center border-t border-neutral-800/50 pt-2">
+                            <span className="text-[10px] text-neutral-500 uppercase tracking-widest">{record.id}</span>
+                            <p className="text-sm text-[#D4AF37] font-mono font-semibold">₹{Number(record.amount).toLocaleString('en-IN')}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* MOBILE OVERLAY */}
       {isSidebarOpen && (
         <div 
@@ -589,15 +662,26 @@ We truly appreciate your business and look forward to serving you again. Drive s
           {/* CRM TAB */}
           {activeTab === "customers" && (
              <div className="space-y-6 animate-in fade-in duration-300">
-               <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
                   <h1 className="text-lg sm:text-xl font-serif tracking-wider text-white">CUSTOMER DIRECTORY</h1>
-                  <p className="text-[10px] sm:text-xs text-neutral-500 mt-1">Manage client records, vehicles, and contact information.</p>
+                  <p className="text-[10px] sm:text-xs text-neutral-500 mt-1">Manage client records, vehicles, and access service histories.</p>
+                </div>
+                
+                {/* SEARCH BAR */}
+                <div className="relative w-full sm:w-72 shadow-lg">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                  <Input 
+                    placeholder="Search by Plate, Name, or Phone..." 
+                    value={customerSearchQuery} 
+                    onChange={(e) => setCustomerSearchQuery(e.target.value)} 
+                    className="pl-9 bg-black/60 border-neutral-800 text-sm text-white h-10 w-full focus:border-[#D4AF37]/50 focus:ring-1 focus:ring-[#D4AF37]/50" 
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="bg-[#0a0a0c] border-neutral-900 text-white lg:col-span-1 shadow-xl">
+                <Card className="bg-[#0a0a0c] border-neutral-900 text-white lg:col-span-1 shadow-xl h-fit">
                   <CardHeader className="border-b border-neutral-900 pb-4">
                     <CardTitle className="text-sm tracking-widest uppercase text-[#D4AF37] flex items-center gap-2">
                       <Plus className="w-4 h-4" /> Add New Client
@@ -618,8 +702,8 @@ We truly appreciate your business and look forward to serving you again. Drive s
                         <Input value={newVehicle} onChange={(e)=>setNewVehicle(e.target.value)} placeholder="e.g. Ford Endeavour" className="bg-black/50 border-neutral-800 h-9 text-sm text-white" required />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] tracking-wider text-neutral-400 uppercase">License Plate</label>
-                        <Input value={newPlate} onChange={(e)=>setNewPlate(e.target.value)} placeholder="MP-07-AB-1234" className="bg-black/50 border-neutral-800 h-9 text-sm uppercase text-white" required />
+                        <label className="text-[10px] tracking-wider text-neutral-400 uppercase">License Plate (Primary ID)</label>
+                        <Input value={newPlate} onChange={(e)=>setNewPlate(e.target.value)} placeholder="MP-07-AB-1234" className="bg-black/50 border-neutral-800 h-9 text-sm uppercase text-white font-mono" required />
                       </div>
                       <Button type="submit" className="w-full bg-[#D4AF37] hover:bg-[#bfa032] text-black text-xs tracking-widest uppercase font-semibold h-10 mt-2">
                         Register Client
@@ -629,34 +713,43 @@ We truly appreciate your business and look forward to serving you again. Drive s
                 </Card>
 
                 <Card className="bg-[#0a0a0c] border-neutral-900 text-white lg:col-span-2 shadow-xl overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="text-[10px] text-neutral-400 uppercase bg-neutral-900/50 border-b border-neutral-800">
+                  <div className="overflow-x-auto h-[600px] custom-scrollbar relative">
+                    <table className="w-full text-sm text-left relative">
+                      <thead className="text-[10px] text-neutral-400 uppercase bg-[#0a0a0c] border-b border-neutral-800 sticky top-0 z-10">
                         <tr>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Car Number (ID)</th>
                           <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Client Details</th>
-                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Vehicle</th>
-                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Plate No.</th>
-                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider text-right whitespace-nowrap">Status</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider whitespace-nowrap">Status</th>
+                          <th className="px-4 sm:px-6 py-4 font-medium tracking-wider text-right whitespace-nowrap">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-900">
-                        {customers.map((customer) => (
-                          <tr key={customer.id} className="hover:bg-neutral-900/20 transition-colors">
+                        {filteredCustomers.map((customer) => (
+                          <tr key={customer.id} className="hover:bg-neutral-900/40 transition-colors group cursor-pointer" onClick={() => openCustomerProfile(customer)}>
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                              <span className="font-mono text-sm text-[#D4AF37] font-semibold bg-[#D4AF37]/10 px-2.5 py-1 rounded border border-[#D4AF37]/20">{customer.plate}</span>
+                            </td>
                             <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <p className="font-medium text-white">{customer.name}</p>
                               <p className="text-xs text-neutral-500 mt-0.5">{customer.phone}</p>
                             </td>
-                            <td className="px-4 sm:px-6 py-4 text-neutral-300 whitespace-nowrap">{customer.vehicle}</td>
-                            <td className="px-4 sm:px-6 py-4 text-neutral-400 font-mono text-xs whitespace-nowrap">{customer.plate}</td>
-                            <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2 py-1 rounded text-[9px] uppercase tracking-wider font-medium ${
                                 customer.type === "Premium" ? "bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/20" : "bg-neutral-800 text-neutral-300 border border-neutral-700"
                               }`}>
                                 {customer.type}
                               </span>
                             </td>
+                            <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
+                              <Button variant="ghost" size="sm" className="text-neutral-500 group-hover:text-white transition-colors h-8 text-[10px] uppercase tracking-widest">
+                                Profile <ChevronRight className="w-3 h-3 ml-1" />
+                              </Button>
+                            </td>
                           </tr>
                         ))}
+                        {filteredCustomers.length === 0 && (
+                          <tr><td colSpan={4} className="px-6 py-10 text-center text-neutral-500 text-sm">No clients match your search criteria.</td></tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -689,7 +782,7 @@ We truly appreciate your business and look forward to serving you again. Drive s
                         <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Select Client</label>
                         <select value={jobCustomer} onChange={(e) => setJobCustomer(e.target.value)} className="w-full bg-black/50 border border-neutral-800 rounded-md h-9 text-sm px-3 text-white focus:ring-1 focus:ring-[#D4AF37]/50 focus:outline-none appearance-none" required>
                           <option value="" disabled>Choose client...</option>
-                          {customers.map(c => <option key={c.id} value={c.name}>{c.name} ({c.vehicle})</option>)}
+                          {customers.map(c => <option key={c.id} value={c.name}>{c.name} ({c.plate})</option>)}
                         </select>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3">
@@ -943,7 +1036,7 @@ We truly appreciate your business and look forward to serving you again. Drive s
                         <label className="text-[10px] tracking-wider text-neutral-400 uppercase">Select Client</label>
                         <select value={invCustomer} onChange={(e)=>setInvCustomer(e.target.value)} className="w-full bg-black/50 border border-neutral-800 rounded-md h-9 text-sm px-3 text-white focus:ring-1 focus:ring-[#D4AF37]/50 focus:outline-none appearance-none" required>
                           <option value="" disabled>Choose existing client...</option>
-                          {customers.map(c => <option key={c.id} value={c.name}>{c.name} ({c.vehicle})</option>)}
+                          {customers.map(c => <option key={c.id} value={c.name}>{c.name} ({c.plate})</option>)}
                         </select>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3">
